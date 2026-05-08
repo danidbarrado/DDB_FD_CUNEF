@@ -27,11 +27,11 @@ eu27 <- c("AUT","BEL","BGR","HRV","CYP","CZE","DNK","EST","FIN",
           "FRA","DEU","GRC","HUN","IRL","ITA","LVA","LTU","LUX",
           "MLT","NLD","POL","PRT","ROU","SVK","SVN","ESP","SWE")
 
-eurozone <- c("AUT","BEL","CYP","EST","FIN","FRA","DEU","GRC",
+eurozone <- c("AUT","BEL","BGR","CYP","EST","FIN","FRA","DEU","GRC",
               "HRV","IRL","ITA","LVA","LTU","LUX","MLT","NLD",
               "PRT","SVK","SVN","ESP")
 
-non_euro <- c("CZE","DNK","HUN","POL","ROU","SWE", "BGR")
+non_euro <- c("CZE","DNK","HUN","POL","ROU","SWE", "BGR", "HRV")
 
 theme_set(theme_minimal(base_size = 13))
 col_euro    <- "#1D9E75"
@@ -498,3 +498,279 @@ cat("R²:", round(summary(re2)$r.squared[1], 4), "\n")
 cat("\n--- R-squared comparison ---\n")
 cat("Equation 1 R²:", round(summary(re1)$r.squared[1], 4), "\n")
 cat("Equation 2 R²:", round(summary(re2)$r.squared[1], 4), "\n")
+
+# ================================================================
+# Other robustness checks and extensions could include:
+#   Part A: Extra descriptive statistics and plots
+#   Part B: Branch 1 — pre-crisis vs post-crisis
+#   Part C: Branch 2 — eurozone vs non-eurozone
+#   Part D: Declining relevance check (Giofré & Sokolenko 2022)
+# ================================================================
+# PART A: EXTRA DESCRIPTIVE STATISTICS AND PLOTS
+# ================================================================
+
+# --- A1: ERV summary by country and period ----------------------
+cat("\n--- ERV by country and period ---\n")
+panel %>%
+  filter(!is.na(er_vol)) %>%
+  mutate(period = case_when(
+    year <= 2007 ~ "Pre-crisis (2000-2007)",
+    year <= 2012 ~ "Crisis (2008-2012)",
+    TRUE         ~ "Post-crisis (2013-2022)"
+  )) %>%
+  group_by(country_code, period) %>%
+  summarise(mean_erv = round(mean(er_vol, na.rm = TRUE), 3),
+            .groups = "drop") %>%
+  pivot_wider(names_from = period, values_from = mean_erv) %>%
+  print()
+
+# --- A2: FDI summary by country (all EU-27) ---------------------
+cat("\n--- Mean FDI by country (2000-2022) ---\n")
+panel %>%
+  group_by(country_code, group) %>%
+  summarise(mean_fdi = round(mean(fdi, na.rm = TRUE), 2),
+            sd_fdi   = round(sd(fdi,   na.rm = TRUE), 2),
+            .groups  = "drop") %>%
+  arrange(desc(mean_fdi)) %>%
+  print()
+
+# --- A3: Plot — FDI over time for non-euro members individually -
+p_noneuro_facet <- panel %>%
+  filter(country_code %in% non_euro) %>%
+  ggplot(aes(x = year, y = fdi)) +
+  geom_line(colour = col_noneuro, linewidth = 0.9) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_vline(xintercept = 2008, linetype = "dotted", colour = "grey50") +
+  facet_wrap(~ country_name, scales = "free_y", ncol = 3) +
+  scale_x_continuous(breaks = c(2000, 2010, 2020)) +
+  labs(title = "FDI net inflows — non-eurozone EU members (2000-2022)",
+       x = NULL, y = "FDI (% of GDP)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+print(p_noneuro_facet)
+ggsave("plot_noneuro_fdi_facet.png", p_noneuro_facet,
+       width = 10, height = 6, dpi = 150)
+
+# --- A4: Plot — NEER trends for non-euro members ----------------
+p_neer <- panel %>%
+  filter(country_code %in% non_euro) %>%
+  ggplot(aes(x = year, y = neer_avg, colour = country_name)) +
+  geom_line(linewidth = 0.9) +
+  geom_hline(yintercept = 100, linetype = "dashed", colour = "grey50") +
+  scale_x_continuous(breaks = seq(2000, 2022, 4)) +
+  labs(title    = "Nominal effective exchange rate — non-eurozone EU (2000-2022)",
+       subtitle = "Index 2015 = 100",
+       x = NULL, y = "NEER (2015=100)", colour = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+print(p_neer)
+ggsave("plot_neer_noneuro.png", p_neer, width = 10, height = 5.5, dpi = 150)
+
+# --- A5: Plot — GDP growth trend by group -----------------------
+p_gdp <- panel %>%
+  group_by(year, group) %>%
+  summarise(mean_gdp = mean(gdp_growth, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = year, y = mean_gdp, colour = group)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_vline(xintercept = 2008, linetype = "dotted", colour = "grey50") +
+  scale_colour_manual(values = c("Eurozone" = col_euro,
+                                 "Non-euro EU" = col_noneuro), name = NULL) +
+  scale_x_continuous(breaks = seq(2000, 2022, 4)) +
+  labs(title = "GDP growth: Eurozone vs Non-euro EU (2000-2022)",
+       x = NULL, y = "GDP growth (%)") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+print(p_gdp)
+ggsave("plot_gdp_trend.png", p_gdp, width = 10, height = 5.5, dpi = 150)
+
+
+# ================================================================
+# PART B: BRANCH 1 — PRE-CRISIS VS POST-CRISIS
+# ================================================================
+# Hypothesis: the negative effect of ERV on FDI should be stronger
+# in the pre-crisis period (2000-2007) than the post-crisis period
+# (2013-2022), consistent with Giofré and Sokolenko (2022).
+
+# Split the non-euro panel into two sub-periods
+panel_pre  <- panel_noneuro %>% filter(as.integer(as.character(year)) <= 2007)
+panel_post <- panel_noneuro %>% filter(as.integer(as.character(year)) >= 2013)
+
+# --- B1: Equation 1 — Pre-crisis (2000-2007) --------------------
+cat("\n--- Branch 1: Eq.1 — Pre-crisis (2000-2007) ---\n")
+eq1_pre <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+              + country_code + year,
+              data = panel_pre)
+coef_names <- c("er_vol", "gdp_growth", "inflation", "trade_open")
+print(round(summary(eq1_pre)$coefficients[coef_names, ], 4))
+cat("Adjusted R²:", round(summary(eq1_pre)$adj.r.squared, 4), "\n")
+
+# --- B2: Equation 1 — Post-crisis (2013-2022) -------------------
+cat("\n--- Branch 1: Eq.1 — Post-crisis (2013-2022) ---\n")
+eq1_post <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+               + country_code + year,
+               data = panel_post)
+print(round(summary(eq1_post)$coefficients[coef_names, ], 4))
+cat("Adjusted R²:", round(summary(eq1_post)$adj.r.squared, 4), "\n")
+
+# --- B3: Equation 2 — Pre-crisis (lagged ERV) -------------------
+cat("\n--- Branch 1: Eq.2 — Pre-crisis (lagged ERV) ---\n")
+eq2_pre <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+              + country_code + year,
+              data = panel_pre)
+coef_names2 <- c("er_vol_lag", "gdp_growth", "inflation", "trade_open")
+print(round(summary(eq2_pre)$coefficients[coef_names2, ], 4))
+cat("Adjusted R²:", round(summary(eq2_pre)$adj.r.squared, 4), "\n")
+
+# --- B4: Equation 2 — Post-crisis (lagged ERV) ------------------
+cat("\n--- Branch 1: Eq.2 — Post-crisis (lagged ERV) ---\n")
+eq2_post <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+               + country_code + year,
+               data = panel_post)
+print(round(summary(eq2_post)$coefficients[coef_names2, ], 4))
+cat("Adjusted R²:", round(summary(eq2_post)$adj.r.squared, 4), "\n")
+
+# --- B5: Summary comparison table (Branch 1) --------------------
+cat("\n--- Branch 1 model comparison ---\n")
+cat("Pre-crisis  Eq.1 — er_vol coef:",
+    round(coef(eq1_pre)["er_vol"], 4),
+    "| Adj. R²:", round(summary(eq1_pre)$adj.r.squared, 4), "\n")
+cat("Post-crisis Eq.1 — er_vol coef:",
+    round(coef(eq1_post)["er_vol"], 4),
+    "| Adj. R²:", round(summary(eq1_post)$adj.r.squared, 4), "\n")
+cat("Pre-crisis  Eq.2 — er_vol_lag coef:",
+    round(coef(eq2_pre)["er_vol_lag"], 4),
+    "| Adj. R²:", round(summary(eq2_pre)$adj.r.squared, 4), "\n")
+cat("Post-crisis Eq.2 — er_vol_lag coef:",
+    round(coef(eq2_post)["er_vol_lag"], 4),
+    "| Adj. R²:", round(summary(eq2_post)$adj.r.squared, 4), "\n")
+
+
+# ================================================================
+# PART C: BRANCH 2 — EUROZONE VS NON-EUROZONE
+# ================================================================
+# For eurozone members er_vol is not available (they share the euro)
+# so the eurozone model is run without the ERV variable.
+# This allows comparison of how macroeconomic controls behave
+# differently across the two currency regimes.
+
+panel_euro_plm <- pdata.frame(
+  panel %>% filter(euro_member == 1) %>%
+    mutate(country_code = as.character(country_code),
+           year = as.integer(as.character(year))),
+  index = c("country_code", "year")
+)
+
+panel_noneuro_plm <- pdata.frame(
+  panel %>% filter(euro_member == 0) %>%
+    mutate(country_code = as.character(country_code),
+           year = as.integer(as.character(year))),
+  index = c("country_code", "year")
+)
+panel_noneuro_plm$er_vol_lag <- lag(panel_noneuro_plm$er_vol, 1)
+
+# --- C1: Eurozone — controls only (no ERV) ----------------------
+cat("\n--- Branch 2: Eurozone members (no ERV available) ---\n")
+re_euro <- plm(fdi ~ gdp_growth + inflation + trade_open,
+               data   = panel_euro_plm,
+               model  = "random",
+               effect = "twoways")
+print(coeftest(re_euro, vcov = vcovHC(re_euro, type = "HC3")))
+cat("R²:", round(summary(re_euro)$r.squared[1], 4), "\n")
+
+# --- C2: Non-eurozone — Eq.1 current ERV ------------------------
+cat("\n--- Branch 2: Non-eurozone — Eq.1 (current ERV) ---\n")
+re_noneuro1 <- plm(fdi ~ er_vol + gdp_growth + inflation + trade_open,
+                   data   = panel_noneuro_plm,
+                   model  = "random",
+                   effect = "twoways")
+print(coeftest(re_noneuro1, vcov = vcovHC(re_noneuro1, type = "HC3")))
+cat("R²:", round(summary(re_noneuro1)$r.squared[1], 4), "\n")
+
+# --- C3: Non-eurozone — Eq.2 lagged ERV -------------------------
+cat("\n--- Branch 2: Non-eurozone — Eq.2 (lagged ERV) ---\n")
+re_noneuro2 <- plm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open,
+                   data   = panel_noneuro_plm,
+                   model  = "random",
+                   effect = "twoways")
+print(coeftest(re_noneuro2, vcov = vcovHC(re_noneuro2, type = "HC3")))
+cat("R²:", round(summary(re_noneuro2)$r.squared[1], 4), "\n")
+
+
+# ================================================================
+# PART D: DECLINING RELEVANCE CHECK (Giofré & Sokolenko 2022)
+# ================================================================
+# Giofré and Sokolenko (2022) find that the negative effect of ERV
+# on cross-border investment disappeared after 2012. This section
+# tests whether the same pattern holds in this sample by computing
+# the simple correlation between ERV and FDI year by year.
+# A declining correlation over time would support their hypothesis.
+
+cat("\n--- Declining relevance: year-by-year correlation (ERV vs FDI) ---\n")
+cor_by_year <- panel %>%
+  filter(!is.na(er_vol), !is.na(fdi)) %>%
+  group_by(year) %>%
+  summarise(
+    cor_erv_fdi = cor(er_vol, fdi, use = "complete.obs"),
+    n = n(),
+    .groups = "drop"
+  )
+print(cor_by_year)
+
+# Plot: year-by-year correlation
+p_cor <- cor_by_year %>%
+  ggplot(aes(x = year, y = cor_erv_fdi)) +
+  geom_line(colour = "#533AB7", linewidth = 1) +
+  geom_point(size = 2, colour = "#533AB7") +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_vline(xintercept = 2008, linetype = "dotted", colour = "grey50") +
+  annotate("text", x = 2008.5, y = max(cor_by_year$cor_erv_fdi, na.rm = TRUE),
+           label = "GFC", colour = "grey40", size = 3.5) +
+  scale_x_continuous(breaks = seq(2000, 2022, 4)) +
+  labs(title    = "Year-by-year correlation: ERV and FDI (non-euro EU)",
+       subtitle = "Positive = higher volatility associated with more FDI that year",
+       x = NULL, y = "Pearson correlation") +
+  theme_minimal()
+print(p_cor)
+ggsave("plot_declining_relevance.png", p_cor,
+       width = 10, height = 5.5, dpi = 150)
+
+# Split mean correlation: pre-crisis vs post-crisis
+cat("\n--- Mean correlation by period ---\n")
+cor_by_year %>%
+  mutate(period = ifelse(year <= 2007, "Pre-crisis (2000-2007)",
+                         ifelse(year <= 2012, "Crisis (2008-2012)",
+                                "Post-crisis (2013-2022)"))) %>%
+  group_by(period) %>%
+  summarise(mean_cor = round(mean(cor_erv_fdi, na.rm = TRUE), 3),
+            .groups = "drop") %>%
+  print()
+
+# ================================================================
+# PART E: OVERALL RESULTS SUMMARY
+# ================================================================
+# Prints a clean summary of all model coefficients on ERV
+# for easy reference when writing the results chapter.
+
+cat("\n================================================================\n")
+cat("SUMMARY: ERV coefficient across all models\n")
+cat("================================================================\n")
+cat("Main model (RE, full panel, Eq.1 — current ERV):  ",
+    round(coef(re1)["er_vol"], 4),
+    " | p =", round(coeftest(re1, vcov = vcovHC(re1, type = "HC3"))["er_vol", 4], 4), "\n")
+cat("Main model (RE, full panel, Eq.2 — lagged ERV):   ",
+    round(coef(re2)["er_vol_lag"], 4),
+    " | p =", round(coeftest(re2, vcov = vcovHC(re2, type = "HC3"))["er_vol_lag", 4], 4), "\n")
+cat("Branch 1 — Pre-crisis  Eq.1 (current ERV):        ",
+    round(coef(eq1_pre)["er_vol"], 4), "\n")
+cat("Branch 1 — Post-crisis Eq.1 (current ERV):        ",
+    round(coef(eq1_post)["er_vol"], 4), "\n")
+cat("Branch 1 — Pre-crisis  Eq.2 (lagged ERV):         ",
+    round(coef(eq2_pre)["er_vol_lag"], 4), "\n")
+cat("Branch 1 — Post-crisis Eq.2 (lagged ERV):         ",
+    round(coef(eq2_post)["er_vol_lag"], 4), "\n")
+cat("Branch 2 — Non-eurozone Eq.1 (current ERV):       ",
+    round(coef(re_noneuro1)["er_vol"], 4), "\n")
+cat("Branch 2 — Non-eurozone Eq.2 (lagged ERV):        ",
+    round(coef(re_noneuro2)["er_vol_lag"], 4), "\n")
+cat("================================================================\n")
