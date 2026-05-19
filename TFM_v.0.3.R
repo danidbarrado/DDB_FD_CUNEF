@@ -352,9 +352,6 @@ p5 <- panel %>%
 print(p5)
 ggsave("plot5_erv_fdi_scatter.png", p5, width = 9, height = 6, dpi = 150)
 
-# ================================================================
-# Other descriptive statistics plots
-# ================================================================
 
 # --- A1: ERV summary by country and period ----------------------
 cat("\n--- ERV by country and period ---\n")
@@ -381,7 +378,7 @@ panel %>%
   arrange(desc(mean_fdi)) %>%
   print()
 
-# --- A3: Plot — FDI over time for non-euro members individually -
+# --- A3: Plot — FDI over time for non-euro members individually ----
 p_noneuro_facet <- panel %>%
   filter(country_code %in% non_euro) %>%
   ggplot(aes(x = year, y = fdi)) +
@@ -490,18 +487,12 @@ cat("Equation 2 — Adj. R²:", round(summary(eq2)$adj.r.squared, 4),
 # If β < 0 and significant (p < 0.05): higher ERV reduces FDI inflows.
 # If β > 0 or not significant: no clear negative relationship found.
 
-# --- Diagnostic plots -------------------------------------------
-par(mfrow = c(2, 2))
-plot(eq1, main = "Eq.1 Diagnostics")
-par(mfrow = c(1, 1))
 
 # ================================================================
 # PART 10: RANDOM EFFECTS MODEL
 # ================================================================
 # The Hausman test (p = 0.60) does not reject random effects,
-# meaning RE is consistent and preferred here. Unlike the FE
-# estimator, RE exploits cross-country variation in ERV, which
-# is where most of the signal in this dataset resides.
+# meaning RE are consistent and preferred here.
 
 # Two versions: Eq.1 contemporaneous ERV, Eq.2 lagged ERV.
 
@@ -768,11 +759,11 @@ rows <- list(
     summary(eq2_post)$adj.r.squared),
   c("B2 Non-eurozone Eq.1 (current ERV)",
     coef(re_noneuro1)["er_vol"],
-    coeftest(re_noneuro1, vcov = vcovHC(re_noneuro1, "HC3"))["er_vol", 4],
+    coeftest(re_noneuro1, vcov = vcovHC(re_noneuro1, "arellano"))["er_vol", 4],
     summary(re_noneuro1)$r.squared[1]),
   c("B2 Non-eurozone Eq.2 (lagged ERV)",
     coef(re_noneuro2)["er_vol_lag"],
-    coeftest(re_noneuro2, vcov = vcovHC(re_noneuro2, "HC3"))["er_vol_lag", 4],
+    coeftest(re_noneuro2, vcov = vcovHC(re_noneuro2, "arellano"))["er_vol_lag", 4],
     summary(re_noneuro2)$r.squared[1]),
   c("B4 Long-run Eq.1 (3-yr avg ERV)",
     coef(eq_lr1)["er_vol_avg3"],
