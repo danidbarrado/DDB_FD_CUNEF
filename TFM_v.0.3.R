@@ -353,116 +353,7 @@ print(p5)
 ggsave("plot5_erv_fdi_scatter.png", p5, width = 9, height = 6, dpi = 150)
 
 # ================================================================
-# PART 9: PANEL REGRESSION
-# ================================================================
-# We run two versions:
-#   Eq.1 — contemporaneous ERV (current year)
-#   Eq.2 — lagged ERV (previous year)
-
-panel_noneuro <- panel %>%
-  filter(country_code %in% non_euro) %>%
-  arrange(country_code, year)
-panel_noneuro <- panel_noneuro %>%
-  group_by(country_code) %>%
-  mutate(er_vol_lag = lag(er_vol, 1)) %>%
-  ungroup()
-# Convert country and year to factors (for dummy-variable fixed effects)
-panel_noneuro$country_code <- factor(panel_noneuro$country_code)
-panel_noneuro$year         <- factor(panel_noneuro$year)
-
-# --- Equation 1: contemporaneous ERV ----------------------------
-eq1 <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
-          + country_code + year,
-          data = panel_noneuro)
-summary(eq1)
-
-# Focus on the key coefficients (exclude the many country/year dummies)
-
-coef_names <- c("er_vol","gdp_growth","inflation","trade_open")
-print(round(summary(eq1)$coefficients[coef_names, ], 4))
-
-cat("\nAdjusted R²:", round(summary(eq1)$adj.r.squared, 4), "\n")
-
-# --- Equation 2: lagged ERV -------------------------------------
-cat("\n--- Equation 2: lagged ERV (one-year lag) ---\n")
-eq2 <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
-          + country_code + year,
-          data = panel_noneuro)
-summary(eq2)
-
-cat("\nKey coefficients (Eq.2):\n")
-coef_names2 <- c("er_vol_lag","gdp_growth","inflation","trade_open")
-print(round(summary(eq2)$coefficients[coef_names2, ], 4))
-
-cat("\nAdjusted R²:", round(summary(eq2)$adj.r.squared, 4), "\n")
-
-# --- Model comparison -------------------------------------------
-cat("\n--- Model comparison ---\n")
-cat("Equation 1 — Adj. R²:", round(summary(eq1)$adj.r.squared, 4),
-    "| AIC:", round(AIC(eq1), 1), "\n")
-cat("Equation 2 — Adj. R²:", round(summary(eq2)$adj.r.squared, 4),
-    "| AIC:", round(AIC(eq2), 1), "\n")
-
-# --- Interpretation note ----------------------------------------
-# β(er_vol): the estimated change in FDI (% of GDP) for a 1-unit
-#             increase in exchange rate volatility, holding all other
-#             variables and country/year effects constant.
-# If β < 0 and significant (p < 0.05): higher ERV reduces FDI inflows.
-# If β > 0 or not significant: no clear negative relationship found.
-
-# --- Diagnostic plots -------------------------------------------
-par(mfrow = c(2, 2))
-plot(eq1, main = "Eq.1 Diagnostics")
-par(mfrow = c(1, 1))
-
-# ================================================================
-# PART 10: RANDOM EFFECTS MODEL
-# ================================================================
-# The Hausman test (p = 0.60) does not reject random effects,
-# meaning RE is consistent and preferred here. Unlike the FE
-# estimator, RE exploits cross-country variation in ERV, which
-# is where most of the signal in this dataset resides.
-#
-# Model:
-#   FDI = β0 + β1·ERV + β2·GDP_growth + β3·Inflation + β4·Trade_open
-#         + country RE + year RE + ε
-#
-# Two versions: Eq.1 contemporaneous ERV, Eq.2 lagged ERV.
-
-panel_pdata <- pdata.frame(panel, index = c("country_code", "year"))
-panel_pdata$er_vol_lag <- lag(panel_pdata$er_vol, 1)
-
-# --- Equation 1: contemporaneous ERV ----------------------------
-cat("\n--- Equation 1: current ERV (Random Effects) ---\n")
-re1 <- plm(fdi ~ er_vol + gdp_growth + inflation + trade_open,
-           data   = panel_pdata,
-           model  = "random",
-           effect = "twoways")
-print(coeftest(re1, vcov = vcovHC(re1, type = "HC3")))
-cat("R²:", round(summary(re1)$r.squared[1], 4), "\n")
-
-# --- Equation 2: lagged ERV -------------------------------------
-cat("\n--- Equation 2: lagged ERV (Random Effects) ---\n")
-re2 <- plm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open,
-           data   = panel_pdata,
-           model  = "random",
-           effect = "twoways")
-print(coeftest(re2, vcov = vcovHC(re2, type = "HC3")))
-cat("R²:", round(summary(re2)$r.squared[1], 4), "\n")
-
-# --- Model comparison -------------------------------------------
-cat("\n--- R-squared comparison ---\n")
-cat("Equation 1 R²:", round(summary(re1)$r.squared[1], 4), "\n")
-cat("Equation 2 R²:", round(summary(re2)$r.squared[1], 4), "\n")
-
-# ================================================================
-# Other robustness checks and extensions could include:
-#   Part A: Extra descriptive statistics and plots
-#   Part B: Branch 1 — pre-crisis vs post-crisis
-#   Part C: Branch 2 — eurozone vs non-eurozone
-#   Part D: Declining relevance check (Giofré & Sokolenko 2022)
-# ================================================================
-# PART A: EXTRA DESCRIPTIVE STATISTICS AND PLOTS
+# Other descriptive statistics plots
 # ================================================================
 
 # --- A1: ERV summary by country and period ----------------------
@@ -542,284 +433,359 @@ ggsave("plot_gdp_trend.png", p_gdp, width = 10, height = 5.5, dpi = 150)
 
 
 # ================================================================
-# PART B: BRANCH 1 — PRE-CRISIS VS POST-CRISIS
+# PART 9: PANEL REGRESSION
 # ================================================================
-# Hypothesis: the negative effect of ERV on FDI should be stronger
-# in the pre-crisis period (2000-2007) than the post-crisis period
-# (2013-2022), consistent with Giofré and Sokolenko (2022).
+# We run two versions:
+#   Eq.1 — contemporaneous ERV (current year)
+#   Eq.2 — lagged ERV (previous year)
 
-# Split the non-euro panel into two sub-periods
-panel_pre  <- panel_noneuro %>% filter(as.integer(as.character(year)) <= 2007)
-panel_post <- panel_noneuro %>% filter(as.integer(as.character(year)) >= 2013)
+panel_noneuro <- panel %>%
+  filter(country_code %in% non_euro) %>%
+  arrange(country_code, year)
+panel_noneuro <- panel_noneuro %>%
+  group_by(country_code) %>%
+  mutate(er_vol_lag = lag(er_vol, 1)) %>%
+  ungroup()
+# Convert country and year to factors (for dummy-variable fixed effects)
+panel_noneuro$country_code <- factor(panel_noneuro$country_code)
+panel_noneuro$year         <- factor(panel_noneuro$year)
 
-# --- B1: Equation 1 — Pre-crisis (2000-2007) --------------------
-cat("\n--- Branch 1: Eq.1 — Pre-crisis (2000-2007) ---\n")
-eq1_pre <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
-              + country_code + year,
-              data = panel_pre)
-coef_names <- c("er_vol", "gdp_growth", "inflation", "trade_open")
-print(round(summary(eq1_pre)$coefficients[coef_names, ], 4))
-cat("Adjusted R²:", round(summary(eq1_pre)$adj.r.squared, 4), "\n")
+# --- Equation 1: contemporaneous ERV ----------------------------
+eq1_MAIN <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+          + country_code + year,
+          data = panel_noneuro)
+summary(eq1)
 
-# --- B2: Equation 1 — Post-crisis (2013-2022) -------------------
-cat("\n--- Branch 1: Eq.1 — Post-crisis (2013-2022) ---\n")
+# Focus on the key coefficients (exclude the many country/year dummies)
+
+coef_names <- c("er_vol","gdp_growth","inflation","trade_open")
+print(round(summary(eq1)$coefficients[coef_names, ], 4))
+
+cat("\nAdjusted R²:", round(summary(eq1)$adj.r.squared, 4), "\n")
+
+# --- Equation 2: lagged ERV -------------------------------------
+cat("\n--- Equation 2: lagged ERV (one-year lag) ---\n")
+eq2_MAIN <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+          + country_code + year,
+          data = panel_noneuro)
+summary(eq2)
+
+cat("\nKey coefficients (Eq.2):\n")
+coef_names2 <- c("er_vol_lag","gdp_growth","inflation","trade_open")
+print(round(summary(eq2)$coefficients[coef_names2, ], 4))
+
+cat("\nAdjusted R²:", round(summary(eq2)$adj.r.squared, 4), "\n")
+
+# --- Model comparison -------------------------------------------
+cat("\n--- Model comparison ---\n")
+cat("Equation 1 — Adj. R²:", round(summary(eq1)$adj.r.squared, 4),
+    "| AIC:", round(AIC(eq1), 1), "\n")
+cat("Equation 2 — Adj. R²:", round(summary(eq2)$adj.r.squared, 4),
+    "| AIC:", round(AIC(eq2), 1), "\n")
+
+# --- Interpretation note ----------------------------------------
+# β(er_vol): the estimated change in FDI (% of GDP) for a 1-unit
+#             increase in exchange rate volatility, holding all other
+#             variables and country/year effects constant.
+# If β < 0 and significant (p < 0.05): higher ERV reduces FDI inflows.
+# If β > 0 or not significant: no clear negative relationship found.
+
+# --- Diagnostic plots -------------------------------------------
+par(mfrow = c(2, 2))
+plot(eq1, main = "Eq.1 Diagnostics")
+par(mfrow = c(1, 1))
+
+# ================================================================
+# PART 10: RANDOM EFFECTS MODEL
+# ================================================================
+# The Hausman test (p = 0.60) does not reject random effects,
+# meaning RE is consistent and preferred here. Unlike the FE
+# estimator, RE exploits cross-country variation in ERV, which
+# is where most of the signal in this dataset resides.
+
+# Two versions: Eq.1 contemporaneous ERV, Eq.2 lagged ERV.
+
+panel_pdata <- pdata.frame(panel, index = c("country_code", "year"))
+panel_pdata$er_vol_lag <- lag(panel_pdata$er_vol, 1)
+
+# --- Equation 1: contemporaneous ERV ----------------------------
+cat("\n--- Equation 1: current ERV (Random Effects) ---\n")
+re1 <- plm(fdi ~ er_vol + gdp_growth + inflation + trade_open,
+           data   = panel_pdata,
+           model  = "random",
+           effect = "twoways")
+print(coeftest(re1, vcov = vcovHC(re1, type = "HC3")))
+cat("R²:", round(summary(re1)$r.squared[1], 4), "\n")
+
+# --- Equation 2: lagged ERV -------------------------------------
+cat("\n--- Equation 2: lagged ERV (Random Effects) ---\n")
+re2 <- plm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open,
+           data   = panel_pdata,
+           model  = "random",
+           effect = "twoways")
+print(coeftest(re2, vcov = vcovHC(re2, type = "HC3")))
+cat("R²:", round(summary(re2)$r.squared[1], 4), "\n")
+
+# --- Model comparison -------------------------------------------
+cat("\n--- R-squared comparison ---\n")
+cat("Equation 1 R²:", round(summary(re1)$r.squared[1], 4), "\n")
+cat("Equation 2 R²:", round(summary(re2)$r.squared[1], 4), "\n")
+
+# ================================================================
+# PART 11: ROBUSTNESS CHECKS AND EXTENSIONS
+# ================================================================
+# Other robustness checks and extensions could include:
+# Branch 1: Pre-crisis vs post-crisis
+# Branch 2: Eurozone vs non-eurozone
+# Branch 3: Country-level (Giofré declining relevance check)
+# Branch 4: Short-run vs long-run ERV
+
+# Base non-euro panel used across all branches
+panel_noneuro <- panel %>%
+  filter(euro_member == 0) %>%
+  arrange(country_code, year) %>%
+  group_by(country_code) %>%
+  mutate(
+    er_vol_lag      = lag(er_vol, 1),
+    er_vol_avg3     = (lag(er_vol, 1) + lag(er_vol, 2) + lag(er_vol, 3)) / 3,
+    er_vol_avg3_lag = lag((lag(er_vol, 1) + lag(er_vol, 2) + lag(er_vol, 3)) / 3, 1)
+  ) %>%
+  ungroup()
+
+# ================================================================
+# BRANCH 1: PRE-CRISIS vs POST-CRISIS
+# ================================================================
+ 
+panel_pre  <- panel_noneuro %>% filter(year <= 2007)
+panel_post <- panel_noneuro %>% filter(year >= 2013)
+ 
+# Equation 1: current ERV
+eq1_pre  <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+               + country_code + year, data = panel_pre)
 eq1_post <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
-               + country_code + year,
-               data = panel_post)
-print(round(summary(eq1_post)$coefficients[coef_names, ], 4))
-cat("Adjusted R²:", round(summary(eq1_post)$adj.r.squared, 4), "\n")
-
-# --- B3: Equation 2 — Pre-crisis (lagged ERV) -------------------
-cat("\n--- Branch 1: Eq.2 — Pre-crisis (lagged ERV) ---\n")
-eq2_pre <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
-              + country_code + year,
-              data = panel_pre)
-coef_names2 <- c("er_vol_lag", "gdp_growth", "inflation", "trade_open")
-print(round(summary(eq2_pre)$coefficients[coef_names2, ], 4))
-cat("Adjusted R²:", round(summary(eq2_pre)$adj.r.squared, 4), "\n")
-
-# --- B4: Equation 2 — Post-crisis (lagged ERV) ------------------
-cat("\n--- Branch 1: Eq.2 — Post-crisis (lagged ERV) ---\n")
+               + country_code + year, data = panel_post)
+ 
+# Equation 2: lagged ERV
+eq2_pre  <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+               + country_code + year, data = panel_pre)
 eq2_post <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
-               + country_code + year,
-               data = panel_post)
-print(round(summary(eq2_post)$coefficients[coef_names2, ], 4))
+               + country_code + year, data = panel_post)
+ 
+coef_keep   <- c("er_vol",     "gdp_growth", "inflation", "trade_open")
+coef_keep_l <- c("er_vol_lag", "gdp_growth", "inflation", "trade_open")
+ 
+cat("\n--- Branch 1: Pre-crisis Eq.1 (current ERV) ---\n")
+print(round(summary(eq1_pre)$coefficients[coef_keep, ], 4))
+cat("Adjusted R²:", round(summary(eq1_pre)$adj.r.squared, 4), "\n")
+ 
+cat("\n--- Branch 1: Pre-crisis Eq.2 (lagged ERV) ---\n")
+print(round(summary(eq2_pre)$coefficients[coef_keep_l, ], 4))
+cat("Adjusted R²:", round(summary(eq2_pre)$adj.r.squared, 4), "\n")
+ 
+cat("\n--- Branch 1: Post-crisis Eq.1 (current ERV) ---\n")
+print(round(summary(eq1_post)$coefficients[coef_keep, ], 4))
+cat("Adjusted R²:", round(summary(eq1_post)$adj.r.squared, 4), "\n")
+ 
+cat("\n--- Branch 1: Post-crisis Eq.2 (lagged ERV) ---\n")
+print(round(summary(eq2_post)$coefficients[coef_keep_l, ], 4))
 cat("Adjusted R²:", round(summary(eq2_post)$adj.r.squared, 4), "\n")
-
-# --- B5: Summary comparison table (Branch 1) --------------------
-cat("\n--- Branch 1 model comparison ---\n")
-cat("Pre-crisis  Eq.1 — er_vol coef:",
-    round(coef(eq1_pre)["er_vol"], 4),
-    "| Adj. R²:", round(summary(eq1_pre)$adj.r.squared, 4), "\n")
-cat("Post-crisis Eq.1 — er_vol coef:",
-    round(coef(eq1_post)["er_vol"], 4),
-    "| Adj. R²:", round(summary(eq1_post)$adj.r.squared, 4), "\n")
-cat("Pre-crisis  Eq.2 — er_vol_lag coef:",
-    round(coef(eq2_pre)["er_vol_lag"], 4),
-    "| Adj. R²:", round(summary(eq2_pre)$adj.r.squared, 4), "\n")
-cat("Post-crisis Eq.2 — er_vol_lag coef:",
-    round(coef(eq2_post)["er_vol_lag"], 4),
-    "| Adj. R²:", round(summary(eq2_post)$adj.r.squared, 4), "\n")
-
-
+ 
+ 
 # ================================================================
-# PART C: BRANCH 2 — EUROZONE VS NON-EUROZONE
+# BRANCH 2: EUROZONE vs NON-EUROZONE
 # ================================================================
-# For eurozone members er_vol is not available (they share the euro)
-# so the eurozone model is run without the ERV variable.
-# This allows comparison of how macroeconomic controls behave
-# differently across the two currency regimes.
-
-panel_euro_plm <- pdata.frame(
-  panel %>% filter(euro_member == 1) %>%
-    mutate(country_code = as.character(country_code),
-           year = as.integer(as.character(year))),
-  index = c("country_code", "year")
-)
-
-panel_noneuro_plm <- pdata.frame(
-  panel %>% filter(euro_member == 0) %>%
-    mutate(country_code = as.character(country_code),
-           year = as.integer(as.character(year))),
-  index = c("country_code", "year")
-)
+ 
+panel_euro_plm <- panel %>%
+  filter(euro_member == 1) %>%
+  pdata.frame(index = c("country_code", "year"))
+ 
+panel_noneuro_plm <- panel_noneuro %>%
+  pdata.frame(index = c("country_code", "year"))
+ 
 panel_noneuro_plm$er_vol_lag <- lag(panel_noneuro_plm$er_vol, 1)
-
-# --- C1: Eurozone — controls only (no ERV) ----------------------
-cat("\n--- Branch 2: Eurozone members (no ERV available) ---\n")
+ 
+# Eurozone: no ERV available, controls only
 re_euro <- plm(fdi ~ gdp_growth + inflation + trade_open,
                data   = panel_euro_plm,
                model  = "random",
                effect = "twoways")
-print(coeftest(re_euro, vcov = vcovHC(re_euro, type = "HC3")))
-cat("R²:", round(summary(re_euro)$r.squared[1], 4), "\n")
-
-# --- C2: Non-eurozone — Eq.1 current ERV ------------------------
-cat("\n--- Branch 2: Non-eurozone — Eq.1 (current ERV) ---\n")
+ 
+# Non-eurozone Eq.1: current ERV
 re_noneuro1 <- plm(fdi ~ er_vol + gdp_growth + inflation + trade_open,
                    data   = panel_noneuro_plm,
                    model  = "random",
                    effect = "twoways")
-print(coeftest(re_noneuro1, vcov = vcovHC(re_noneuro1, type = "HC3")))
-cat("R²:", round(summary(re_noneuro1)$r.squared[1], 4), "\n")
-
-# --- C3: Non-eurozone — Eq.2 lagged ERV -------------------------
-cat("\n--- Branch 2: Non-eurozone — Eq.2 (lagged ERV) ---\n")
+ 
+# Non-eurozone Eq.2: lagged ERV
 re_noneuro2 <- plm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open,
                    data   = panel_noneuro_plm,
                    model  = "random",
                    effect = "twoways")
+ 
+cat("\n--- Branch 2: Eurozone only (no ERV) ---\n")
+print(coeftest(re_euro, vcov = vcovHC(re_euro, type = "HC3")))
+cat("R²:", round(summary(re_euro)$r.squared[1], 4), "\n")
+ 
+cat("\n--- Branch 2: Non-eurozone Eq.1 (current ERV) ---\n")
+print(coeftest(re_noneuro1, vcov = vcovHC(re_noneuro1, type = "HC3")))
+cat("R²:", round(summary(re_noneuro1)$r.squared[1], 4), "\n")
+ 
+cat("\n--- Branch 2: Non-eurozone Eq.2 (lagged ERV) ---\n")
 print(coeftest(re_noneuro2, vcov = vcovHC(re_noneuro2, type = "HC3")))
 cat("R²:", round(summary(re_noneuro2)$r.squared[1], 4), "\n")
-
-
+ 
+ 
 # ================================================================
-# PART D: DECLINING RELEVANCE CHECK (Giofré & Sokolenko 2022)
+# BRANCH 3: GIOFRÉ DECLINING RELEVANCE CHECK
 # ================================================================
-
-cat("\n--- Declining relevance: year-by-year correlation (ERV vs FDI) ---\n")
-cor_by_year <- panel %>%
+ 
+cor_by_year <- panel_noneuro %>%
   filter(!is.na(er_vol), !is.na(fdi)) %>%
   group_by(year) %>%
   summarise(
-    cor_erv_fdi = cor(er_vol, fdi, use = "complete.obs"),
-    n = n(),
+    cor_current = cor(er_vol,     fdi, use = "complete.obs"),
+    cor_lagged  = cor(er_vol_lag, fdi, use = "complete.obs"),
     .groups = "drop"
   )
+ 
+cat("\n--- Branch 3: Year-by-year ERV vs FDI correlation ---\n")
 print(cor_by_year)
-
-# Plot: year-by-year correlation
+ 
+cat("\n--- Branch 3: Mean correlation by period ---\n")
+cor_by_year %>%
+  mutate(period = case_when(
+    year <= 2007 ~ "Pre-crisis (2000-2007)",
+    year <= 2012 ~ "Crisis (2008-2012)",
+    TRUE         ~ "Post-crisis (2013-2022)"
+  )) %>%
+  group_by(period) %>%
+  summarise(
+    mean_cor_current = round(mean(cor_current, na.rm = TRUE), 3),
+    mean_cor_lagged  = round(mean(cor_lagged,  na.rm = TRUE), 3),
+    .groups = "drop"
+  ) %>%
+  print()
+ 
+# Plot: current and lagged correlation over time
 p_cor <- cor_by_year %>%
-  ggplot(aes(x = year, y = cor_erv_fdi)) +
-  geom_line(colour = "#533AB7", linewidth = 1) +
-  geom_point(size = 2, colour = "#533AB7") +
+  pivot_longer(cols      = c(cor_current, cor_lagged),
+               names_to  = "type",
+               values_to = "correlation") %>%
+  mutate(type = ifelse(type == "cor_current", "Current ERV", "Lagged ERV")) %>%
+  ggplot(aes(x = year, y = correlation, colour = type)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
   geom_vline(xintercept = 2008, linetype = "dotted", colour = "grey50") +
-  annotate("text", x = 2008.5, y = max(cor_by_year$cor_erv_fdi, na.rm = TRUE),
+  annotate("text", x = 2008.5, y = 0.9,
            label = "GFC", colour = "grey40", size = 3.5) +
+  scale_colour_manual(values = c("Current ERV" = "#533AB7",
+                                 "Lagged ERV"  = "#BA7517"),
+                      name = NULL) +
   scale_x_continuous(breaks = seq(2000, 2022, 4)) +
   labs(title    = "Year-by-year correlation: ERV and FDI (non-euro EU)",
-       subtitle = "Positive = higher volatility associated with more FDI that year",
+       subtitle = "Current and lagged ERV vs FDI inflows",
        x = NULL, y = "Pearson correlation") +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "bottom")
 print(p_cor)
 ggsave("plot_declining_relevance.png", p_cor,
        width = 10, height = 5.5, dpi = 150)
-
-# Split mean correlation: pre-crisis vs post-crisis
-cat("\n--- Mean correlation by period ---\n")
-cor_by_year %>%
-  mutate(period = ifelse(year <= 2007, "Pre-crisis (2000-2007)",
-                         ifelse(year <= 2012, "Crisis (2008-2012)",
-                                "Post-crisis (2013-2022)"))) %>%
-  group_by(period) %>%
-  summarise(mean_cor = round(mean(cor_erv_fdi, na.rm = TRUE), 3),
-            .groups = "drop") %>%
-  print()
-
+ 
+ 
 # ================================================================
-# PART E: OVERALL RESULTS SUMMARY
+# BRANCH 4: SHORT-RUN vs LONG-RUN ERV
+# ================================================================
+# Short-run: current and lagged ERV (same as main model)
+# Long-run: 3-year rolling average ERV and its lag
+# Follows Hanusch et al. (2018) short-run / long-run distinction
+ 
+coef_keep_lr  <- c("er_vol_avg3",     "gdp_growth", "inflation", "trade_open")
+coef_keep_lrl <- c("er_vol_avg3_lag", "gdp_growth", "inflation", "trade_open")
+ 
+# Short-run models (same specification as Part 9, reported here for comparison)
+eq_sr1 <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+             + country_code + year, data = panel_noneuro)
+ 
+eq_sr2 <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+             + country_code + year, data = panel_noneuro)
+ 
+# Long-run models
+eq_lr1 <- lm(fdi ~ er_vol_avg3 + gdp_growth + inflation + trade_open
+             + country_code + year, data = panel_noneuro)
+ 
+eq_lr2 <- lm(fdi ~ er_vol_avg3_lag + gdp_growth + inflation + trade_open
+             + country_code + year, data = panel_noneuro)
+ 
+cat("\n--- Branch 4: Short-run Eq.1 (current ERV) ---\n")
+print(round(summary(eq_sr1)$coefficients[coef_keep, ], 4))
+cat("Adjusted R²:", round(summary(eq_sr1)$adj.r.squared, 4), "\n")
+ 
+cat("\n--- Branch 4: Short-run Eq.2 (lagged ERV) ---\n")
+print(round(summary(eq_sr2)$coefficients[coef_keep_l, ], 4))
+cat("Adjusted R²:", round(summary(eq_sr2)$adj.r.squared, 4), "\n")
+ 
+cat("\n--- Branch 4: Long-run Eq.1 (3-year avg ERV) ---\n")
+print(round(summary(eq_lr1)$coefficients[coef_keep_lr, ], 4))
+cat("Adjusted R²:", round(summary(eq_lr1)$adj.r.squared, 4), "\n")
+ 
+cat("\n--- Branch 4: Long-run Eq.2 (lagged 3-year avg ERV) ---\n")
+print(round(summary(eq_lr2)$coefficients[coef_keep_lrl, ], 4))
+cat("Adjusted R²:", round(summary(eq_lr2)$adj.r.squared, 4), "\n")
+ 
+ 
+# ================================================================
+# FULL SUMMARY TABLE
 # ================================================================
 
-cat("\n================================================================\n")
-cat("SUMMARY: ERV coefficient across all models\n")
-cat("================================================================\n")
-cat("Main model (RE, full panel, Eq.1 — current ERV):  ",
-    round(coef(re1)["er_vol"], 4),
-    " | p =", round(coeftest(re1, vcov = vcovHC(re1, type = "HC3"))["er_vol", 4], 4), "\n")
-cat("Main model (RE, full panel, Eq.2 — lagged ERV):   ",
-    round(coef(re2)["er_vol_lag"], 4),
-    " | p =", round(coeftest(re2, vcov = vcovHC(re2, type = "HC3"))["er_vol_lag", 4], 4), "\n")
-cat("Branch 1 — Pre-crisis  Eq.1 (current ERV):        ",
-    round(coef(eq1_pre)["er_vol"], 4), "\n")
-cat("Branch 1 — Post-crisis Eq.1 (current ERV):        ",
-    round(coef(eq1_post)["er_vol"], 4), "\n")
-cat("Branch 1 — Pre-crisis  Eq.2 (lagged ERV):         ",
-    round(coef(eq2_pre)["er_vol_lag"], 4), "\n")
-cat("Branch 1 — Post-crisis Eq.2 (lagged ERV):         ",
-    round(coef(eq2_post)["er_vol_lag"], 4), "\n")
-cat("Branch 2 — Non-eurozone Eq.1 (current ERV):       ",
-    round(coef(re_noneuro1)["er_vol"], 4), "\n")
-cat("Branch 2 — Non-eurozone Eq.2 (lagged ERV):        ",
-    round(coef(re_noneuro2)["er_vol_lag"], 4), "\n")
-cat("================================================================\n")
-
-
-# --- Table 2: Pre-crisis vs Post-crisis -------------------------
-panel_pre  <- panel_noneuro %>%
-  filter(as.integer(as.character(year)) <= 2007)
-
-panel_post <- panel_noneuro %>%
-  filter(as.integer(as.character(year)) >= 2013)
-
-eq1_pre <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
-              + country_code + year, data = panel_pre)
-
-eq1_post <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
-               + country_code + year, data = panel_post)
-
-cat("\n--- Pre-crisis key coefficients ---\n")
-coef_names <- c("er_vol","gdp_growth","inflation","trade_open")
-print(round(summary(eq1_pre)$coefficients[coef_names, ], 4))
-cat("Adjusted R²:", round(summary(eq1_pre)$adj.r.squared, 4), "\n")
-
-cat("\n--- Post-crisis key coefficients ---\n")
-print(round(summary(eq1_post)$coefficients[coef_names, ], 4))
-cat("Adjusted R²:", round(summary(eq1_post)$adj.r.squared, 4), "\n")
-
-
-# --- Table 3: Eurozone vs Non-eurozone (Random Effects) ---------
-
-panel_euro_plm <- pdata.frame(
-  panel %>%
-    filter(euro_member == 1) %>%
-    mutate(country_code = as.character(country_code),
-           year = as.integer(as.character(year))),
-  index = c("country_code","year")
+cat(sprintf("%-48s %9s %9s %9s\n", "Model", "ERV coef", "p-value", "Adj. R²"))
+cat(rep("-", 78), "\n", sep = "")
+ 
+rows <- list(
+  c("Main Eq.1 (current ERV)",
+    coef(eq1)["er_vol"],
+    coeftest(eq1, vcov = vcovHC(eq1, "HC3"))["er_vol", 4],
+    summary(eq1)$r.squared[1]),
+  c("Main Eq.2 (lagged ERV)",
+    coef(eq2)["er_vol_lag"],
+    coeftest(eq2, vcov = vcovHC(eq2, "HC3"))["er_vol_lag", 4],
+    summary(eq2)$r.squared[1]),
+  c("B1 Pre-crisis Eq.1 (current ERV)",
+    coef(eq1_pre)["er_vol"],
+    summary(eq1_pre)$coefficients["er_vol", 4],
+    summary(eq1_pre)$adj.r.squared),
+  c("B1 Pre-crisis Eq.2 (lagged ERV)",
+    coef(eq2_pre)["er_vol_lag"],
+    summary(eq2_pre)$coefficients["er_vol_lag", 4],
+    summary(eq2_pre)$adj.r.squared),
+  c("B1 Post-crisis Eq.1 (current ERV)",
+    coef(eq1_post)["er_vol"],
+    summary(eq1_post)$coefficients["er_vol", 4],
+    summary(eq1_post)$adj.r.squared),
+  c("B1 Post-crisis Eq.2 (lagged ERV)",
+    coef(eq2_post)["er_vol_lag"],
+    summary(eq2_post)$coefficients["er_vol_lag", 4],
+    summary(eq2_post)$adj.r.squared),
+  c("B2 Non-eurozone Eq.1 (current ERV)",
+    coef(re_noneuro1)["er_vol"],
+    coeftest(re_noneuro1, vcov = vcovHC(re_noneuro1, "HC3"))["er_vol", 4],
+    summary(re_noneuro1)$r.squared[1]),
+  c("B2 Non-eurozone Eq.2 (lagged ERV)",
+    coef(re_noneuro2)["er_vol_lag"],
+    coeftest(re_noneuro2, vcov = vcovHC(re_noneuro2, "HC3"))["er_vol_lag", 4],
+    summary(re_noneuro2)$r.squared[1]),
+  c("B4 Long-run Eq.1 (3-yr avg ERV)",
+    coef(eq_lr1)["er_vol_avg3"],
+    summary(eq_lr1)$coefficients["er_vol_avg3", 4],
+    summary(eq_lr1)$adj.r.squared),
+  c("B4 Long-run Eq.2 (lagged 3-yr avg ERV)",
+    coef(eq_lr2)["er_vol_avg3_lag"],
+    summary(eq_lr2)$coefficients["er_vol_avg3_lag", 4],
+    summary(eq_lr2)$adj.r.squared)
 )
-
-panel_noneuro_plm <- pdata.frame(
-  panel %>%
-    filter(euro_member == 0) %>%
-    mutate(country_code = as.character(country_code),
-           year = as.integer(as.character(year))),
-  index = c("country_code","year")
-)
-
-re_euro <- plm(fdi ~ gdp_growth + inflation + trade_open,
-               data = panel_euro_plm,
-               model = "random", effect = "twoways")
-
-re_noneuro <- plm(fdi ~ er_vol + gdp_growth + inflation + trade_open,
-                  data = panel_noneuro_plm,
-                  model = "random", effect = "twoways")
-
-cat("\n--- Eurozone only (Random Effects, no ERV) ---\n")
-print(coeftest(re_euro, vcov = vcovHC(re_euro, type = "HC3")))
-cat("R²:", round(summary(re_euro)$r.squared[1], 4), "\n")
-
-cat("\n--- Non-eurozone only (Random Effects) ---\n")
-print(coeftest(re_noneuro, vcov = vcovHC(re_noneuro, type = "HC3")))
-cat("R²:", round(summary(re_noneuro)$r.squared[1], 4), "\n")
-
-
-# --- Table 4: Full comparison summary ---------------------------
-cat("\n================================================================\n")
-cat("FULL RESULTS SUMMARY\n")
-cat("================================================================\n")
-cat(sprintf("%-45s %10s %10s %10s\n",
-            "Model", "ERV coef", "p-value", "Adj. R²"))
-cat(rep("-", 75), "\n", sep="")
-cat(sprintf("%-45s %10.4f %10.4f %10.4f\n",
-            "Eq.1 Full panel (FE, current ERV)",
-            coef(eq1)["er_vol"],
-            summary(eq1)$coefficients["er_vol", 4],
-            summary(eq1)$adj.r.squared))
-cat(sprintf("%-45s %10.4f %10.4f %10.4f\n",
-            "Eq.2 Full panel (FE, lagged ERV)",
-            coef(eq2)["er_vol_lag"],
-            summary(eq2)$coefficients["er_vol_lag", 4],
-            summary(eq2)$adj.r.squared))
-cat(sprintf("%-45s %10.4f %10.4f %10.4f\n",
-            "Eq.1 Pre-crisis (FE, current ERV)",
-            coef(eq1_pre)["er_vol"],
-            summary(eq1_pre)$coefficients["er_vol", 4],
-            summary(eq1_pre)$adj.r.squared))
-cat(sprintf("%-45s %10.4f %10.4f %10.4f\n",
-            "Eq.1 Post-crisis (FE, current ERV)",
-            coef(eq1_post)["er_vol"],
-            summary(eq1_post)$coefficients["er_vol", 4],
-            summary(eq1_post)$adj.r.squared))
-cat(sprintf("%-45s %10s %10.4f %10.4f\n",
-            "RE Eurozone only (no ERV)",
-            "N/A",
-            1.000,
-            summary(re_euro)$r.squared[1]))
-cat(sprintf("%-45s %10.4f %10.4f %10.4f\n",
-            "RE Non-eurozone only (current ERV)",
-            coef(re_noneuro)["er_vol"],
-            coeftest(re_noneuro,
-                     vcov = vcovHC(re_noneuro,
-                                   type = "HC3"))["er_vol", 4],
-            summary(re_noneuro)$r.squared[1]))
-cat("================================================================\n")
+ 
+for (r in rows) {
+  cat(sprintf("%-48s %9.4f %9.4f %9.4f\n",
+              r[1], as.numeric(r[2]),
+              as.numeric(r[3]), as.numeric(r[4])))
+}
