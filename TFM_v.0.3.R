@@ -41,8 +41,8 @@ eurozone <- c("AUT","BEL","BGR","CYP","EST","FIN","FRA","DEU","GRC",
 non_euro <- c("CZE","DNK","HUN","POL","ROU","SWE")
 
 theme_set(theme_minimal(base_size = 13))
-col_euro    <- "#1D9E75"
-col_noneuro <- "#BA7517"
+col_euro    <- "#2166AC"   # RdBu blue  — Eurozone
+col_noneuro <- "#D6604D"   # RdBu coral — Non-euro EU
 
 # ================================================================
 # PART 1: FDI DATA (World Bank)
@@ -285,7 +285,7 @@ p1 <- panel %>%
   labs(title = "FDI net inflows: Eurozone vs Non-euro EU (2000-2022)",
        subtitle = "Mean across countries (% of GDP)",
        x = NULL, y = "FDI (% of GDP)") +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p1)
 ggsave("plot1_fdi_trend.png", p1, width = 10, height = 5.5, dpi = 150)
@@ -302,7 +302,7 @@ p2 <- panel %>%
   coord_flip() +
   labs(title = "Average FDI by EU country (2000-2022)",
        x = NULL, y = "Mean FDI (% of GDP)") +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p2)
 ggsave("plot2_fdi_country.png", p2, width = 9, height = 7, dpi = 150)
@@ -317,7 +317,7 @@ p3 <- panel %>%
   coord_cartesian(ylim = c(-15, 30)) +
   labs(title = "FDI distribution by period and group",
        x = NULL, y = "FDI (% of GDP)") +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p3)
 ggsave("plot3_boxplot.png", p3, width = 10, height = 5.5, dpi = 150)
@@ -329,10 +329,11 @@ p4 <- panel %>%
   geom_line(linewidth = 0.9) +
   geom_point(size = 1.5) +
   geom_vline(xintercept = 2008, linetype = "dashed", colour = "grey50") +
+  scale_colour_brewer(palette = "Dark2", name = NULL) +
   labs(title    = "Annual exchange rate volatility vs EUR (2000-2022)",
        subtitle = "SD of monthly log-% changes — non-euro EU members",
        x = NULL, y = "ERV", colour = NULL) +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p4)
 ggsave("plot4_erv_trend.png", p4, width = 10, height = 5.5, dpi = 150)
@@ -342,12 +343,13 @@ p5 <- panel %>%
   filter(!is.na(er_vol), !is.na(fdi)) %>%
   ggplot(aes(x = er_vol, y = fdi, colour = country_name)) +
   geom_point(size = 2, alpha = 0.7) +
-  geom_smooth(method = "lm", se = FALSE, colour = "grey30", linewidth = 0.8) +
+  geom_smooth(method = "lm", se = FALSE, colour = "grey40", linewidth = 0.8) +
+  scale_colour_brewer(palette = "Dark2", name = NULL) +
   labs(title    = "Exchange rate volatility vs FDI (non-euro EU members)",
        subtitle = "Each point = one country-year observation",
        x = "ERV (SD of monthly log-% changes)", y = "FDI (% of GDP)",
        colour = NULL) +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p5)
 ggsave("plot5_erv_fdi_scatter.png", p5, width = 9, height = 6, dpi = 150)
@@ -389,8 +391,9 @@ p_noneuro_facet <- panel %>%
   scale_x_continuous(breaks = c(2000, 2010, 2020)) +
   labs(title = "FDI net inflows — non-eurozone EU members (2000-2022)",
        x = NULL, y = "FDI (% of GDP)") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme_classic(base_size = 13) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.background = element_blank())
 print(p_noneuro_facet)
 ggsave("plot_noneuro_fdi_facet.png", p_noneuro_facet,
        width = 10, height = 6, dpi = 150)
@@ -401,11 +404,12 @@ p_neer <- panel %>%
   ggplot(aes(x = year, y = neer_avg, colour = country_name)) +
   geom_line(linewidth = 0.9) +
   geom_hline(yintercept = 100, linetype = "dashed", colour = "grey50") +
+  scale_colour_brewer(palette = "Dark2", name = NULL) +
   scale_x_continuous(breaks = seq(2000, 2022, 4)) +
   labs(title    = "Nominal effective exchange rate — non-eurozone EU (2000-2022)",
        subtitle = "Index 2015 = 100",
        x = NULL, y = "NEER (2015=100)", colour = NULL) +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p_neer)
 ggsave("plot_neer_noneuro.png", p_neer, width = 10, height = 5.5, dpi = 150)
@@ -423,7 +427,7 @@ p_gdp <- panel %>%
   scale_x_continuous(breaks = seq(2000, 2022, 4)) +
   labs(title = "GDP growth: Eurozone vs Non-euro EU (2000-2022)",
        x = NULL, y = "GDP growth (%)") +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p_gdp)
 ggsave("plot_gdp_trend.png", p_gdp, width = 10, height = 5.5, dpi = 150)
@@ -441,14 +445,14 @@ panel_noneuro <- panel %>%
   arrange(country_code, year)
 panel_noneuro <- panel_noneuro %>%
   group_by(country_code) %>%
-  mutate(er_vol_lag = lag(er_vol, 1)) %>%
+  mutate(er_vol_lag = dplyr::lag(er_vol, 1)) %>%
   ungroup()
 # Convert country and year to factors (for dummy-variable fixed effects)
 panel_noneuro$country_code <- factor(panel_noneuro$country_code)
 panel_noneuro$year         <- factor(panel_noneuro$year)
 
 # --- Equation 1: contemporaneous ERV ----------------------------
-eq1_MAIN <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+eq1 <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
           + country_code + year,
           data = panel_noneuro)
 summary(eq1)
@@ -462,7 +466,7 @@ cat("\nAdjusted R²:", round(summary(eq1)$adj.r.squared, 4), "\n")
 
 # --- Equation 2: lagged ERV -------------------------------------
 cat("\n--- Equation 2: lagged ERV (one-year lag) ---\n")
-eq2_MAIN <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+eq2 <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
           + country_code + year,
           data = panel_noneuro)
 summary(eq2)
@@ -525,7 +529,6 @@ cat("Equation 2 R²:", round(summary(re2)$r.squared[1], 4), "\n")
 # ================================================================
 # PART 11: ROBUSTNESS CHECKS AND EXTENSIONS
 # ================================================================
-# Other robustness checks and extensions could include:
 # Branch 1: Pre-crisis vs post-crisis
 # Branch 2: Eurozone vs non-eurozone
 # Branch 3: Country-level (Giofré declining relevance check)
@@ -537,9 +540,9 @@ panel_noneuro <- panel %>%
   arrange(country_code, year) %>%
   group_by(country_code) %>%
   mutate(
-    er_vol_lag      = lag(er_vol, 1),
-    er_vol_avg3     = (lag(er_vol, 1) + lag(er_vol, 2) + lag(er_vol, 3)) / 3,
-    er_vol_avg3_lag = lag((lag(er_vol, 1) + lag(er_vol, 2) + lag(er_vol, 3)) / 3, 1)
+    er_vol_lag      = dplyr::lag(er_vol, 1),
+    er_vol_avg3     = (dplyr::lag(er_vol, 1) + dplyr::lag(er_vol, 2) + dplyr::lag(er_vol, 3)) / 3,
+    er_vol_avg3_lag = dplyr::lag((dplyr::lag(er_vol, 1) + dplyr::lag(er_vol, 2) + dplyr::lag(er_vol, 3)) / 3, 1)
   ) %>%
   ungroup()
 
@@ -634,8 +637,10 @@ cor_by_year <- panel_noneuro %>%
   filter(!is.na(er_vol), !is.na(fdi)) %>%
   group_by(year) %>%
   summarise(
-    cor_current = cor(er_vol,     fdi, use = "complete.obs"),
-    cor_lagged  = cor(er_vol_lag, fdi, use = "complete.obs"),
+    cor_current = cor(er_vol, fdi, use = "complete.obs"),
+    cor_lagged  = if (sum(!is.na(er_vol_lag)) >= 2)
+                    cor(er_vol_lag, fdi, use = "complete.obs")
+                  else NA_real_,
     .groups = "drop"
   )
  
@@ -670,14 +675,14 @@ p_cor <- cor_by_year %>%
   geom_vline(xintercept = 2008, linetype = "dotted", colour = "grey50") +
   annotate("text", x = 2008.5, y = 0.9,
            label = "GFC", colour = "grey40", size = 3.5) +
-  scale_colour_manual(values = c("Current ERV" = "#533AB7",
-                                 "Lagged ERV"  = "#BA7517"),
+  scale_colour_manual(values = c("Current ERV" = col_euro,
+                                 "Lagged ERV"  = col_noneuro),
                       name = NULL) +
   scale_x_continuous(breaks = seq(2000, 2022, 4)) +
   labs(title    = "Year-by-year correlation: ERV and FDI (non-euro EU)",
        subtitle = "Current and lagged ERV vs FDI inflows",
        x = NULL, y = "Pearson correlation") +
-  theme_minimal() +
+  theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p_cor)
 ggsave("plot_declining_relevance.png", p_cor,
