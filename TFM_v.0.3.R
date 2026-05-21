@@ -552,6 +552,10 @@ eq2_pre  <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
 eq2_post <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
                + country_code + year, data = panel_post)
  
+summary (eq1_pre)
+summary (eq1_post)
+summary (eq2_pre)
+summary (eq2_post)
 coef_keep   <- c("er_vol",     "gdp_growth", "inflation", "trade_open")
 coef_keep_l <- c("er_vol_lag", "gdp_growth", "inflation", "trade_open")
  
@@ -727,11 +731,11 @@ rows <- list(
   c("Main Eq.1 (current ERV)",
     coef(eq1)["er_vol"],
     coeftest(eq1, vcov = vcovHC(eq1, "HC3"))["er_vol", 4],
-    summary(eq1)$r.squared[1]),
+    summary(eq1)$adj.r.squared),
   c("Main Eq.2 (lagged ERV)",
     coef(eq2)["er_vol_lag"],
     coeftest(eq2, vcov = vcovHC(eq2, "HC3"))["er_vol_lag", 4],
-    summary(eq2)$r.squared[1]),
+    summary(eq2)$adj.r.squared),
   c("B1 Pre-crisis Eq.1 (current ERV)",
     coef(eq1_pre)["er_vol"],
     summary(eq1_pre)$coefficients["er_vol", 4],
@@ -756,6 +760,14 @@ rows <- list(
     coef(re_noneuro2)["er_vol_lag"],
     coeftest(re_noneuro2, vcov = vcovHC(re_noneuro2, "arellano"))["er_vol_lag", 4],
     summary(re_noneuro2)$r.squared[1]),
+  c("B4 Short-run Eq.1 (current ERV)",
+    coef(eq_sr1)["er_vol"],
+    summary(eq_sr1)$coefficients["er_vol", 4],
+    summary(eq_sr1)$adj.r.squared),
+  c("B4 Short-run Eq.2 (lagged ERV)",
+    coef(eq_sr2)["er_vol_lag"],
+    summary(eq_sr2)$coefficients["er_vol_lag", 4],
+    summary(eq_sr2)$adj.r.squared),
   c("B4 Long-run Eq.1 (3-yr avg ERV)",
     coef(eq_lr1)["er_vol_avg3"],
     summary(eq_lr1)$coefficients["er_vol_avg3", 4],
