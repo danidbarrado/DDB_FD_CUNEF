@@ -14,7 +14,6 @@
 # ================================================================
 
 # install.packages(c("tidyverse","readxl","plm","lmtest","sandwich"))
-
 library(tidyverse)
 library(readxl)
 library(plm)
@@ -288,7 +287,7 @@ p1 <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p1)
-ggsave("plot1_fdi_trend.png", p1, width = 10, height = 5.5, dpi = 150)
+# ggsave("plot1_fdi_trend.png", p1, width = 10, height = 5.5, dpi = 150)
 
 
 # --- Plot 2: Average FDI per country (bar chart) ----------------
@@ -305,7 +304,7 @@ p2 <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p2)
-ggsave("plot2_fdi_country.png", p2, width = 9, height = 7, dpi = 150)
+# ggsave("plot2_fdi_country.png", p2, width = 9, height = 7, dpi = 150)
 
 # --- Plot 3: FDI distribution by period (boxplot) ---------------
 # Boxplot: shows median, IQR, and outliers across periods
@@ -320,7 +319,7 @@ p3 <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p3)
-ggsave("plot3_boxplot.png", p3, width = 10, height = 5.5, dpi = 150)
+# ggsave("plot3_boxplot.png", p3, width = 10, height = 5.5, dpi = 150)
 
 # --- Plot 4: ERV over time — non-euro members -------------------
 p4 <- panel %>%
@@ -336,7 +335,7 @@ p4 <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p4)
-ggsave("plot4_erv_trend.png", p4, width = 10, height = 5.5, dpi = 150)
+# ggsave("plot4_erv_trend.png", p4, width = 10, height = 5.5, dpi = 150)
 
 # --- Plot 5: ERV vs FDI scatter (non-euro members) ---------------
 p5 <- panel %>%
@@ -352,7 +351,7 @@ p5 <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p5)
-ggsave("plot5_erv_fdi_scatter.png", p5, width = 9, height = 6, dpi = 150)
+# ggsave("plot5_erv_fdi_scatter.png", p5, width = 9, height = 6, dpi = 150)
 
 
 # --- A1: ERV summary by country and period ----------------------
@@ -395,8 +394,7 @@ p_noneuro_facet <- panel %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         strip.background = element_blank())
 print(p_noneuro_facet)
-ggsave("plot_noneuro_fdi_facet.png", p_noneuro_facet,
-       width = 10, height = 6, dpi = 150)
+# ggsave("plot_noneuro_fdi_facet.png", p_noneuro_facet, width = 10, height = 6, dpi = 150)
 
 # --- A4: Plot — NEER trends for non-euro members ----------------
 p_neer <- panel %>%
@@ -412,7 +410,7 @@ p_neer <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p_neer)
-ggsave("plot_neer_noneuro.png", p_neer, width = 10, height = 5.5, dpi = 150)
+# ggsave("plot_neer_noneuro.png", p_neer, width = 10, height = 5.5, dpi = 150)
 
 # --- A5: Plot — GDP growth trend by group -----------------------
 p_gdp <- panel %>%
@@ -430,7 +428,7 @@ p_gdp <- panel %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p_gdp)
-ggsave("plot_gdp_trend.png", p_gdp, width = 10, height = 5.5, dpi = 150)
+# ggsave("plot_gdp_trend.png", p_gdp, width = 10, height = 5.5, dpi = 150)
 
 
 # ================================================================
@@ -477,6 +475,30 @@ print(round(summary(eq2)$coefficients[coef_names2, ], 4))
 
 cat("\nAdjusted R²:", round(summary(eq2)$adj.r.squared, 4), "\n")
 
+# --- Equation 1: 95% CI for ERV using HC3 robust standard errors ---
+robust_se_eq1 <- sqrt(diag(vcovHC(eq1, type = "HC3")))
+beta_erv_eq1  <- coef(eq1)["er_vol"]
+ci_eq1_lower  <- beta_erv_eq1 - 1.96 * robust_se_eq1["er_vol"]
+ci_eq1_upper  <- beta_erv_eq1 + 1.96 * robust_se_eq1["er_vol"]
+cat("95% CI for ERV (Eq.1, HC3 robust):",
+    round(ci_eq1_lower, 3), "to", round(ci_eq1_upper, 3), "\n")
+# We can conclude that the true effect of ERV on FDI is likely between these bounds, holding other factors constant.
+# If the CI does not include zero and is negative, it supports the hypothesis that higher ERV reduces FDI inflows.
+# If the CI includes zero, we cannot rule out no effect or even a positive effect of ERV on FDI, suggesting that 
+# the relationship may not be robust or that other factors are more important in determining FDI inflows. 
+# The width of the CI also indicates the precision of our estimate: a narrower CI suggests more confidence in the 
+# estimated effect size, while a wider CI indicates more uncertainty. In this case, if the CI is relatively narrow and 
+# does not include zero, it would provide stronger evidence for a negative impact of ERV on FDI in non-euro EU countries 
+# during the study period.
+# --- Equation 2: 95% CI for ERV using HC3 robust standard errors ---
+
+robust_se_eq2 <- sqrt(diag(vcovHC(eq2, type = "HC3")))
+beta_erv_eq2  <- coef(eq2)["er_vol_lag"]
+ci_eq2_lower  <- beta_erv_eq2 - 1.96 * robust_se_eq2["er_vol_lag"]
+ci_eq2_upper  <- beta_erv_eq2 + 1.96 * robust_se_eq2["er_vol_lag"]
+cat("95% CI for ERV (Eq.2, HC3 robust):",
+    round(ci_eq2_lower, 3), "to", round(ci_eq2_upper, 3), "\n")
+
 # --- Model comparison -------------------------------------------
 cat("\n--- Model comparison ---\n")
 cat("Equation 1 — Adj. R²:", round(summary(eq1)$adj.r.squared, 4),
@@ -491,43 +513,8 @@ cat("Equation 2 — Adj. R²:", round(summary(eq2)$adj.r.squared, 4),
 # If β < 0 and significant (p < 0.05): higher ERV reduces FDI inflows.
 # If β > 0 or not significant: no clear negative relationship found.
 
-
 # ================================================================
-# PART 10: RANDOM EFFECTS MODEL
-# ================================================================
-# The Hausman test (p = 0.60) does not reject random effects,
-# meaning RE are consistent and preferred here.
-
-# Two versions: Eq.1 contemporaneous ERV, Eq.2 lagged ERV.
-
-panel_pdata <- pdata.frame(panel, index = c("country_code", "year"))
-panel_pdata$er_vol_lag <- lag(panel_pdata$er_vol, 1)
-
-# --- Equation 1: contemporaneous ERV ----------------------------
-cat("\n--- Equation 1: current ERV (Random Effects) ---\n")
-re1 <- plm(fdi ~ er_vol + gdp_growth + inflation + trade_open,
-           data   = panel_pdata,
-           model  = "random",
-           effect = "twoways")
-print(coeftest(re1, vcov = vcovHC(re1, type = "HC3")))
-cat("R²:", round(summary(re1)$r.squared[1], 4), "\n")
-
-# --- Equation 2: lagged ERV -------------------------------------
-cat("\n--- Equation 2: lagged ERV (Random Effects) ---\n")
-re2 <- plm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open,
-           data   = panel_pdata,
-           model  = "random",
-           effect = "twoways")
-print(coeftest(re2, vcov = vcovHC(re2, type = "HC3")))
-cat("R²:", round(summary(re2)$r.squared[1], 4), "\n")
-
-# --- Model comparison -------------------------------------------
-cat("\n--- R-squared comparison ---\n")
-cat("Equation 1 R²:", round(summary(re1)$r.squared[1], 4), "\n")
-cat("Equation 2 R²:", round(summary(re2)$r.squared[1], 4), "\n")
-
-# ================================================================
-# PART 11: ROBUSTNESS CHECKS AND EXTENSIONS
+# PART 10: ROBUSTNESS CHECKS AND EXTENSIONS
 # ================================================================
 # Branch 1: Pre-crisis vs post-crisis
 # Branch 2: Eurozone vs non-eurozone
@@ -685,8 +672,7 @@ p_cor <- cor_by_year %>%
   theme_classic(base_size = 13) +
   theme(legend.position = "bottom")
 print(p_cor)
-ggsave("plot_declining_relevance.png", p_cor,
-       width = 10, height = 5.5, dpi = 150)
+# ggsave("plot_declining_relevance.png", p_cor, width = 10, height = 5.5, dpi = 150)
  
  
 # ================================================================
