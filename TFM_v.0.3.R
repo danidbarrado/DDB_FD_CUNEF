@@ -776,3 +776,78 @@ for (r in rows) {
               r[1], as.numeric(r[2]),
               as.numeric(r[3]), as.numeric(r[4])))
 }
+
+# ================================================================
+# SENSITIVITY: EXCLUDING HUNGARY (HUN)
+# ================================================================
+# Hungary is excluded from the following analyses as its unusually
+# high FDI values may distort results for the non-euro EU group.
+
+panel_no_hun <- panel %>%
+  filter(country_code %in% non_euro, country_code != "HUN") %>%
+  arrange(country_code, year) %>%
+  group_by(country_code) %>%
+  mutate(er_vol_lag = dplyr::lag(er_vol, 1)) %>%
+  ungroup()
+
+# --- Plot 5 (no HUN): ERV vs FDI scatter -------------------------
+p5_no_hun <- panel_no_hun %>%
+  filter(!is.na(er_vol), !is.na(fdi)) %>%
+  ggplot(aes(x = er_vol, y = fdi, colour = country_name)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, colour = "grey40", linewidth = 0.8) +
+  scale_colour_brewer(palette = "Dark2", name = NULL) +
+  labs(title    = "Exchange rate volatility vs FDI (non-euro EU, excl. Hungary)",
+       subtitle = "Each point = one country-year observation",
+       x = "ERV (SD of monthly log-% changes)", y = "FDI (% of GDP)",
+       colour = NULL) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "bottom")
+print(p5_no_hun)
+# ggsave("plot5_no_hun_erv_fdi_scatter.png", p5_no_hun, width = 9, height = 6, dpi = 150)
+
+# Plot 6 (no HUN and no DNK): ERV vs FDI scatter
+p6_no_hun_no_dnk <- panel_no_hun %>%
+  filter(country_code != "DNK", !is.na(er_vol), !is.na(fdi)) %>%
+  ggplot(aes(x = er_vol, y = fdi, colour = country_name)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, colour = "grey40", linewidth = 0.8) +
+  scale_colour_brewer(palette = "Dark2", name = NULL) +
+  labs(title    = "Exchange rate volatility vs FDI (non-euro EU, excl. HUN & DNK)",
+       subtitle = "Each point = one country-year observation",
+       x = "ERV (SD of monthly log-% changes)", y = "FDI (% of GDP)",
+       colour = NULL) +
+  theme_classic(base_size = 13) +
+  theme(legend.position = "bottom")
+print(p6_no_hun_no_dnk)
+# ggsave("plot6_no_hun_no_dnk_erv_fdi_scatter.png", p6_no_hun_no_dnk, width = 9, height = 6, dpi = 150)
+
+# Convert to factors for dummy-variable fixed effects
+panel_no_hun$country_code <- factor(panel_no_hun$country_code)
+panel_no_hun$year         <- factor(panel_no_hun$year)
+
+# --- Main Eq.1 (no HUN): contemporaneous ERV --------------------
+eq1_no_hun <- lm(fdi ~ er_vol + gdp_growth + inflation + trade_open
+                 + country_code + year,
+                 data = panel_no_hun)
+
+cat("\n--- Sensitivity (excl. HUN) — Eq.1 (current ERV) ---\n")
+coef_names_nh <- c("er_vol", "gdp_growth", "inflation", "trade_open")
+print(round(summary(eq1_no_hun)$coefficients[coef_names_nh, ], 4))
+cat("Adjusted R²:", round(summary(eq1_no_hun)$adj.r.squared, 4), "\n")
+
+# --- Main Eq.2 (no HUN): lagged ERV -----------------------------
+eq2_no_hun <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
+                 + country_code + year,
+                 data = panel_no_hun)
+
+cat("\n--- Sensitivity (excl. HUN) — Eq.2 (lagged ERV) ---\n")
+coef_names2_nh <- c("er_vol_lag", "gdp_growth", "inflation", "trade_open")
+print(round(summary(eq2_no_hun)$coefficients[coef_names2_nh, ], 4))
+cat("Adjusted R²:", round(summary(eq2_no_hun)$adj.r.squared, 4), "\n")
+
+cat("\n--- Model comparison (excl. HUN) ---\n")
+cat("Equation 1 — Adj. R²:", round(summary(eq1_no_hun)$adj.r.squared, 4),
+    "| AIC:", round(AIC(eq1_no_hun), 1), "\n")
+cat("Equation 2 — Adj. R²:", round(summary(eq2_no_hun)$adj.r.squared, 4),
+    "| AIC:", round(AIC(eq2_no_hun), 1), "\n")
