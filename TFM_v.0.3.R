@@ -835,7 +835,7 @@ cat("\n--- Sensitivity (excl. HUN) — Eq.1 (current ERV) ---\n")
 coef_names_nh <- c("er_vol", "gdp_growth", "inflation", "trade_open")
 print(round(summary(eq1_no_hun)$coefficients[coef_names_nh, ], 4))
 cat("Adjusted R²:", round(summary(eq1_no_hun)$adj.r.squared, 4), "\n")
-
+summary(eq1_no_hun)
 # --- Main Eq.2 (no HUN): lagged ERV -----------------------------
 eq2_no_hun <- lm(fdi ~ er_vol_lag + gdp_growth + inflation + trade_open
                  + country_code + year,
@@ -845,9 +845,12 @@ cat("\n--- Sensitivity (excl. HUN) — Eq.2 (lagged ERV) ---\n")
 coef_names2_nh <- c("er_vol_lag", "gdp_growth", "inflation", "trade_open")
 print(round(summary(eq2_no_hun)$coefficients[coef_names2_nh, ], 4))
 cat("Adjusted R²:", round(summary(eq2_no_hun)$adj.r.squared, 4), "\n")
+summary(eq2_no_hun)
 
 cat("\n--- Model comparison (excl. HUN) ---\n")
 cat("Equation 1 — Adj. R²:", round(summary(eq1_no_hun)$adj.r.squared, 4),
     "| AIC:", round(AIC(eq1_no_hun), 1), "\n")
 cat("Equation 2 — Adj. R²:", round(summary(eq2_no_hun)$adj.r.squared, 4),
     "| AIC:", round(AIC(eq2_no_hun), 1), "\n")
+
+# ------------------------------------------------------------
