@@ -2,7 +2,7 @@
 # Master's Degree in International Business and Global Management CUNEF University
 # Final Dissertation
 
-#   fdi_NI.xls
+#   BX_KL_DINV_WD_GD_ZS renamed to fdi_NI.xls (Foreign Direct Investment)
 #   API_FP_CPI_TOTL_ZG_DS2_en_excel_v2_207080.xls renamed to Inf_CP.xls (Inflation)
 #   API_NY_GDP_MKTP_KD_ZG_DS2_en_excel_v2_29.xls renamed to GDP_Growth.xls (GDP growth)
 #   API_NE_TRD_GNFS_ZS_DS2_en_excel_v2_37.xls renamed to Trade_GDP.xls (Trade openness)
